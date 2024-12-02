@@ -47,7 +47,74 @@ router.get('/:hootId', async (req, res) => {
       res.status(500).json(error);
     }
   });
-  
+
 //! PUT - /hoots/:hootId
+router.put('/:hootId', async (req, res) => {
+  try {
+    // Find the hoot:
+    const hoot = await Hoot.findById(req.params.hootId);
+
+    // Check if the logged in user is the owner of the hoot
+    if (!hoot.author.equals(req.user._id)) {
+      return res.status(403).send("You're not allowed to do that!");
+    }
+
+    // Update and return the newhoot:
+    const updatedHoot = await Hoot.findByIdAndUpdate(
+      req.params.hootId,
+      req.body,
+      { new: true }
+    );
+
+    // Append req.user to the author property:
+    updatedHoot._doc.author = req.user;
+
+    // return JSON response:
+    res.status(200).json(updatedHoot);
+  } catch (error) {
+    res.status(500).json(error);
+  }
+});
+
+//! DELETE - /hoots/:hootId
+router.delete('/:hootId', async (req, res) => {
+    try {
+      const hoot = await Hoot.findById(req.params.hootId);
+  
+      if (!hoot.author.equals(req.user._id)) {
+        return res.status(403).send("You're not allowed to do that!");
+      }
+  
+      const deletedHoot = await Hoot.findByIdAndDelete(req.params.hootId);
+      res.status(200).json(deletedHoot);
+    } catch (error) {
+      res.status(500).json(error);
+    }
+  });
+
+//! POST - /hoots/:hootId/comments
+router.post('/:hootId/comments', async (req, res) => {
+    try {
+        // get the loggedin user
+        req.body.author = req.user._id;
+        const hoot = await Hoot.findById(req.params.hootId);
+        // add comments to comment array
+        hoot.comments.push(req.body);
+        //save the change
+        await hoot.save();
+    
+        // Find the newly created comment so that React can update the new one immediately
+        const newComment = hoot.comments[hoot.comments.length - 1];
+
+        // populate the author for it
+        newComment._doc.author = req.user;
+    
+        // send it to front end, Respond with the newComment:
+        res.status(201).json(newComment);
+    } catch (error) {
+        res.status(500).json(error);
+    }
+  });
+
 
 module.exports = router;
